@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageCircle, Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
+import { MessageCircle, Mail, Lock, Loader2, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
 
 const authSchema = z.object({
@@ -21,12 +22,42 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [hasAdmin, setHasAdmin] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (user && !authLoading) {
       navigate('/dashboard');
     }
+    // Check if there are any admins
+    checkHasAdmin();
   }, [user, authLoading, navigate]);
+
+  const checkHasAdmin = async () => {
+    try {
+      const { data, error } = await supabase.rpc('has_any_admin');
+      if (!error) {
+        setHasAdmin(data as boolean);
+        // If no admin, default to signup mode
+        if (!data) {
+          setIsSignUp(true);
+        }
+      }
+    } catch {
+      setHasAdmin(true); // Assume there's an admin if check fails
+    }
+  };
+
+  const makeFirstAdmin = async (userEmail: string) => {
+    try {
+      const { data, error } = await supabase.rpc('make_user_admin', { target_email: userEmail });
+      if (error) {
+        console.error('Error making user admin:', error);
+      }
+      return !error && data;
+    } catch {
+      return false;
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +85,16 @@ export default function Auth() {
           }
           toast({ title: 'Erro ao cadastrar', description: message, variant: 'destructive' });
         } else {
-          toast({ title: 'Cadastro realizado!', description: 'Você já pode fazer login' });
+          // If no admin exists, make this user admin
+          if (!hasAdmin) {
+            await makeFirstAdmin(email);
+            toast({ 
+              title: 'Conta de administrador criada!', 
+              description: 'Você foi definido como administrador do sistema.' 
+            });
+          } else {
+            toast({ title: 'Cadastro realizado!', description: 'Você já pode fazer login' });
+          }
           setIsSignUp(false);
         }
       } else {
@@ -84,13 +124,23 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center gradient-dark px-4">
       <div className="w-full max-w-md">
         <div className="glass rounded-2xl p-8 animate-fade-in">
+          {/* Admin Notice */}
+          {hasAdmin === false && isSignUp && (
+            <div className="flex items-center gap-3 p-4 mb-6 rounded-xl bg-primary/10 border border-primary/20">
+              <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0" />
+              <p className="text-sm text-foreground">
+                <strong>Primeiro acesso!</strong> Esta conta será definida como administrador do sistema.
+              </p>
+            </div>
+          )}
+
           {/* Logo */}
           <div className="text-center mb-8">
             <div className="w-16 h-16 rounded-2xl gradient-primary mx-auto mb-4 flex items-center justify-center">
               <MessageCircle className="w-8 h-8 text-primary-foreground" />
             </div>
             <h1 className="text-2xl font-bold text-foreground">
-              {isSignUp ? 'Criar Conta' : 'Entrar'}
+              {isSignUp ? (hasAdmin === false ? 'Criar Admin' : 'Criar Conta') : 'Entrar'}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
               {isSignUp ? 'Preencha os dados para se cadastrar' : 'Entre com suas credenciais'}
@@ -108,7 +158,6 @@ export default function Auth() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="seu@email.com"
                   className="pl-10 bg-secondary/50 border-border"
                   autoComplete="email"
                   required
