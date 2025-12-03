@@ -1,258 +1,116 @@
-# Deploy Self-Hosted (VPS com Supabase Completo)
+# 🚀 Deploy Self-Hosted (VPS)
 
-Este guia explica como fazer o deploy do painel na sua VPS com Supabase self-hosted.
+Deploy completo com banco de dados na sua VPS.
 
 ## Requisitos
 
-- VPS com Ubuntu 20.04+ ou Debian 11+
-- Mínimo 4GB RAM (recomendado 8GB)
-- Docker e Docker Compose instalados
-- Domínio apontando para a VPS (opcional, mas recomendado)
+- VPS com **Ubuntu 20.04+** ou **Debian 11+**
+- Mínimo **2GB RAM** (recomendado 4GB)
+- **Docker** e **Docker Compose** instalados
 
-## 1. Instalar Docker e Docker Compose
+## 1. Instalar Docker
 
 ```bash
-# Atualizar sistema
-sudo apt update && sudo apt upgrade -y
-
-# Instalar Docker
+# Ubuntu/Debian
 curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker $USER
-
-# Instalar Docker Compose
-sudo apt install docker-compose-plugin -y
-
-# Reiniciar sessão para aplicar grupo docker
-exit
-# Reconecte via SSH
+# Saia e reconecte via SSH para aplicar
 ```
 
-## 2. Clonar o Repositório
+## 2. Baixar e Configurar
 
 ```bash
-# Clonar repositório
-git clone https://github.com/SEU_USUARIO/SEU_REPOSITORIO.git
-cd SEU_REPOSITORIO
-```
+# Clonar ou extrair o projeto
+cd /opt
+git clone https://github.com/SEU_USUARIO/SEU_REPO.git unidash
+cd unidash
 
-## 3. Configurar Variáveis de Ambiente
-
-```bash
-# Copiar arquivo de exemplo
+# Configurar variáveis
 cp .env.example .env
-
-# Editar configurações
 nano .env
 ```
 
-### Gerar Chaves de Segurança
+### Gerar chaves de segurança:
 
 ```bash
-# Gerar POSTGRES_PASSWORD
-openssl rand -base64 32
-
-# Gerar JWT_SECRET (mínimo 32 caracteres)
-openssl rand -base64 32
-
-# Gerar SECRET_KEY_BASE
-openssl rand -base64 64
+# Cole no terminal para gerar todas as chaves
+echo "POSTGRES_PASSWORD=$(openssl rand -base64 24)"
+echo "JWT_SECRET=$(openssl rand -base64 32)"
+echo "SECRET_KEY_BASE=$(openssl rand -base64 48)"
 ```
 
-### Gerar ANON_KEY e SERVICE_ROLE_KEY
-
-Use o site [supabase.com/docs/guides/self-hosting#api-keys](https://supabase.com/docs/guides/self-hosting#api-keys) ou gere manualmente:
-
-```bash
-# Instalar ferramenta de geração
-npm install -g @supabase/cli
-
-# Gerar chaves (use o mesmo JWT_SECRET do .env)
-supabase gen keys --jwt-secret SEU_JWT_SECRET
-```
-
-### Exemplo de .env Configurado
+### Exemplo de .env configurado:
 
 ```env
-POSTGRES_PASSWORD=SuaSenhaSegura123!@#
-JWT_SECRET=seu-jwt-secret-com-pelo-menos-32-caracteres-aqui
+HOST_IP=meu-servidor.com
+POSTGRES_PASSWORD=abc123XYZ...
+JWT_SECRET=meu-jwt-secret-32-chars...
+SECRET_KEY_BASE=meu-secret-key-base...
 ANON_KEY=eyJhbGciOiJIUzI1NiIs...
 SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIs...
-API_EXTERNAL_URL=http://seu-dominio.com:8000
-SITE_URL=http://seu-dominio.com
 ```
 
-## 4. Iniciar os Serviços
+## 3. Iniciar
 
 ```bash
-# Subir todos os serviços
 docker compose up -d
-
-# Verificar status
-docker compose ps
-
-# Ver logs (em tempo real)
-docker compose logs -f
 ```
 
-## 5. Acessar o Painel
+Aguarde ~1 minuto para todos os serviços iniciarem.
 
-- **Frontend**: http://seu-dominio.com (porta 80)
-- **API Supabase**: http://seu-dominio.com:8000
+## 4. Acessar
 
-## 6. Criar Primeiro Usuário Admin
+- **Painel**: `http://seu-ip` (porta 80)
+- **API**: `http://seu-ip:8000`
 
-1. Acesse http://seu-dominio.com
-2. Clique em "Cadastrar"
-3. Preencha email e senha
-4. O primeiro usuário será automaticamente admin
+O **primeiro usuário** cadastrado será automaticamente **administrador**.
 
 ## Comandos Úteis
 
 ```bash
-# Parar serviços
-docker compose down
+# Ver status
+docker compose ps
 
-# Reiniciar serviços
+# Ver logs
+docker compose logs -f
+
+# Reiniciar
 docker compose restart
 
-# Ver logs de um serviço específico
-docker compose logs -f frontend
-docker compose logs -f db
-docker compose logs -f auth
+# Parar
+docker compose down
 
-# Acessar banco de dados
-docker compose exec db psql -U postgres
+# Atualizar
+git pull && docker compose up -d --build
+```
 
-# Backup do banco
+## Backup do Banco
+
+```bash
+# Fazer backup
 docker compose exec db pg_dump -U postgres postgres > backup.sql
 
 # Restaurar backup
 cat backup.sql | docker compose exec -T db psql -U postgres postgres
-
-# Atualizar para nova versão
-git pull
-docker compose build frontend
-docker compose up -d
 ```
 
-## Configurar HTTPS com Nginx (Recomendado)
+## HTTPS (Opcional)
 
-### Instalar Nginx e Certbot
+Para habilitar HTTPS, use um proxy reverso como Nginx ou Traefik na frente.
 
 ```bash
-sudo apt install nginx certbot python3-certbot-nginx -y
-```
+# Instalar Certbot
+sudo apt install certbot python3-certbot-nginx -y
 
-### Configurar Nginx
-
-```bash
-sudo nano /etc/nginx/sites-available/unidash
-```
-
-Conteúdo:
-```nginx
-server {
-    listen 80;
-    server_name seu-dominio.com;
-
-    location / {
-        proxy_pass http://localhost:80;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-
-    location /api/ {
-        proxy_pass http://localhost:8000/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
-
-```bash
-# Ativar site
-sudo ln -s /etc/nginx/sites-available/unidash /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
-
-# Gerar certificado SSL
+# Gerar certificado
 sudo certbot --nginx -d seu-dominio.com
 ```
 
 ## Solução de Problemas
 
-### Erro de conexão com banco
-```bash
-# Verificar se o banco está rodando
-docker compose ps db
-
-# Ver logs do banco
-docker compose logs db
-
-# Reiniciar banco
-docker compose restart db
-```
-
-### Erro de autenticação
-```bash
-# Verificar se o auth está rodando
-docker compose logs auth
-
-# Verificar JWT_SECRET está igual em todos os serviços
-grep JWT_SECRET .env
-```
-
-### Frontend não carrega
-```bash
-# Verificar build do frontend
-docker compose logs frontend
-
-# Rebuild do frontend
-docker compose build frontend --no-cache
-docker compose up -d frontend
-```
-
-### Resetar tudo e começar do zero
-```bash
-# CUIDADO: Isso apaga todos os dados!
-docker compose down -v
-docker compose up -d
-```
-
-## Arquitetura dos Serviços
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        VPS                                   │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│   ┌─────────────┐     ┌─────────────┐                       │
-│   │  Frontend   │────▶│    Kong     │                       │
-│   │  (Nginx)    │     │  (Gateway)  │                       │
-│   │   :80       │     │   :8000     │                       │
-│   └─────────────┘     └──────┬──────┘                       │
-│                              │                               │
-│          ┌───────────────────┼───────────────────┐          │
-│          │                   │                   │          │
-│          ▼                   ▼                   ▼          │
-│   ┌─────────────┐     ┌─────────────┐     ┌─────────────┐   │
-│   │    Auth     │     │    REST     │     │  Realtime   │   │
-│   │  (GoTrue)   │     │ (PostgREST) │     │ (WebSocket) │   │
-│   └──────┬──────┘     └──────┬──────┘     └──────┬──────┘   │
-│          │                   │                   │          │
-│          └───────────────────┼───────────────────┘          │
-│                              │                               │
-│                              ▼                               │
-│                       ┌─────────────┐                       │
-│                       │ PostgreSQL  │                       │
-│                       │   :5432     │                       │
-│                       └─────────────┘                       │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
-```
+| Problema | Solução |
+|----------|---------|
+| Não conecta | Verifique se todas as portas estão abertas (80, 8000, 5432) |
+| Erro 500 | Veja logs: `docker compose logs auth` |
+| Banco não inicia | Verifique senha: `docker compose logs db` |
+| Resetar tudo | `docker compose down -v && docker compose up -d` |
