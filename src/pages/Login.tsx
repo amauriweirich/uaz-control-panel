@@ -40,8 +40,8 @@ export default function Login() {
             <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mb-4 glow-primary">
               <MessageCircle className="w-8 h-8 text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground">UAZAPI Manager</h1>
-            <p className="text-muted-foreground mt-1">Controle suas instâncias WhatsApp</p>
+            <h1 className="text-2xl font-bold text-foreground">Unidash</h1>
+            <p className="text-muted-foreground mt-1">Unicapital • Gestão WhatsApp</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -98,7 +98,7 @@ export default function Login() {
           </form>
 
           <p className="text-xs text-muted-foreground text-center mt-6">
-            Credenciais padrão: admin / admin123
+            Unicapital © 2024
           </p>
         </div>
       </div>

@@ -68,8 +68,8 @@ export default function Dashboard() {
                 <MessageCircle className="w-5 h-5 text-primary-foreground" />
               </div>
               <div>
-                <h1 className="font-bold text-foreground">UAZAPI Manager</h1>
-                <p className="text-xs text-muted-foreground">Controle de Instâncias</p>
+                <h1 className="font-bold text-foreground">Unidash</h1>
+                <p className="text-xs text-muted-foreground">Unicapital • WhatsApp</p>
               </div>
             </div>
 
