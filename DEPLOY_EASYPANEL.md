@@ -4,248 +4,172 @@
 - VPS com Ubuntu 20.04+ (mínimo 1GB RAM, 20GB disco)
 - Acesso root à VPS via SSH
 - Conta no GitHub
+- Conta no Supabase (gratuita): https://supabase.com
 
 ---
 
-## PARTE 1: Preparar o Código no GitHub
+## PARTE 1: Criar Banco no Supabase
 
-### Passo 1.1 - Conectar Lovable ao GitHub
+### Passo 1.1 - Criar Projeto no Supabase
+1. Acesse https://supabase.com/dashboard
+2. Clique em **New Project**
+3. Configure:
+   - **Name**: unidash
+   - **Database Password**: crie uma senha forte
+   - **Region**: escolha o mais próximo
+4. Aguarde a criação (1-2 min)
+
+### Passo 1.2 - Executar o SQL do Schema
+1. No Supabase, vá em **SQL Editor** → **New Query**
+2. Cole o SQL completo (será mostrado no setup da aplicação)
+3. Clique em **Run**
+
+### Passo 1.3 - Copiar Credenciais
+1. Vá em **Settings** → **API**
+2. Anote:
+   - **Project URL**: `https://xxxxx.supabase.co`
+   - **anon public key**: `eyJhbGciOi...`
+
+---
+
+## PARTE 2: Preparar o Código no GitHub
+
+### Passo 2.1 - Conectar Lovable ao GitHub
 1. No Lovable, clique no botão **GitHub** (canto superior direito)
 2. Clique em **Connect to GitHub**
 3. Autorize o acesso à sua conta GitHub
 4. Clique em **Create Repository**
-5. Dê um nome ao repositório (ex: `unidash-whatsapp`)
+5. Dê um nome ao repositório (ex: `unidash`)
 6. Aguarde o repositório ser criado
-
-### Passo 1.2 - Verificar Repositório
-1. Acesse https://github.com
-2. Confirme que o repositório foi criado
-3. Verifique se contém os arquivos: `Dockerfile`, `nginx.conf`
 
 ---
 
-## PARTE 2: Instalar o Easypanel na VPS
+## PARTE 3: Instalar o Easypanel na VPS
 
-### Passo 2.1 - Conectar na VPS
+### Passo 3.1 - Conectar na VPS
 ```bash
 ssh root@SEU_IP_DA_VPS
 ```
 
-### Passo 2.2 - Instalar o Easypanel
+### Passo 3.2 - Instalar o Easypanel
 ```bash
 curl -sSL https://get.easypanel.io | sh
 ```
 ⏱️ Aguarde 5-10 minutos para instalação completa.
 
-### Passo 2.3 - Acessar o Painel
+### Passo 3.3 - Acessar o Painel
 No navegador, acesse:
 ```
 http://SEU_IP_DA_VPS:3000
 ```
 
-Crie sua conta de administrador:
-- **Email**: seu email
-- **Senha**: crie uma senha forte
+Crie sua conta de administrador.
 
 ---
 
-## PARTE 3: Criar o Projeto no Easypanel
+## PARTE 4: Criar o Projeto no Easypanel
 
-### Passo 3.1 - Criar Projeto
+### Passo 4.1 - Criar Projeto
 1. Clique em **+ Create Project**
 2. Nome: `unidash` 
 3. Clique em **Create**
 
-### Passo 3.2 - Adicionar Serviço
+### Passo 4.2 - Adicionar Serviço
 1. Dentro do projeto, clique em **+ Service**
 2. Escolha **App**
 3. Nome do serviço: `dashboard`
 
----
-
-## PARTE 4: Configurar o Serviço
-
-### Passo 4.1 - Aba "Source" (Código Fonte)
+### Passo 4.3 - Configurar Source
 1. Selecione **GitHub**
-2. Clique em **Connect GitHub Account** (primeira vez)
-3. Autorize o Easypanel no GitHub
-4. Selecione o repositório: `unidash-whatsapp`
-5. Branch: `main`
+2. Conecte sua conta GitHub
+3. Selecione o repositório criado
+4. Branch: `main`
 
-### Passo 4.2 - Aba "Build" (Compilação)
+### Passo 4.4 - Configurar Build
 | Campo | Valor |
 |-------|-------|
 | Build Type | `Dockerfile` |
 | Dockerfile Path | `Dockerfile` |
 
-### Passo 4.3 - Aba "Domains" (Domínios)
-1. Clique em **+ Add Domain**
-2. Escolha uma opção:
+### Passo 4.5 - Configurar Domínio
+1. Em **Domains**, clique em **+ Add Domain**
+2. Use um subdomínio automático: `unidash.SEU_IP.sslip.io`
+3. Marque **HTTPS**
 
-**Opção A - Subdomínio automático (sem domínio próprio):**
-```
-dashboard.SEU_IP.sslip.io
-```
-
-**Opção B - Domínio próprio:**
-```
-painel.seudominio.com.br
-```
-*(Requer configuração DNS - ver Parte 6)*
-
-3. Marque a opção **HTTPS** para SSL automático
+### Passo 4.6 - Deploy
+1. Clique em **Deploy**
+2. Aguarde o build (3-5 min)
 
 ---
 
-## PARTE 5: Fazer o Deploy
+## PARTE 5: Configurar a Aplicação
 
-### Passo 5.1 - Iniciar Deploy
-1. Clique no botão azul **Deploy** (canto superior)
-2. Aguarde o build (3-5 minutos na primeira vez)
+### Passo 5.1 - Acessar o Unidash
+1. Acesse a URL configurada: `https://unidash.SEU_IP.sslip.io`
+2. Você verá a **Tela de Configuração Inicial**
 
-### Passo 5.2 - Acompanhar o Processo
-1. Vá em **Deployments** para ver os logs
-2. Quando aparecer ✅ **Running**, está pronto!
+### Passo 5.2 - Conectar ao Supabase
+1. Na aba **"1. Criar Banco"**, copie o SQL e execute no Supabase (se ainda não fez)
+2. Na aba **"2. Conectar"**, preencha:
+   - **URL do Supabase**: `https://xxxxx.supabase.co`
+   - **Anon Key**: sua chave anon public
+3. Clique em **Testar e Salvar**
 
-### Passo 5.3 - Acessar o Dashboard
-Acesse a URL configurada:
-```
-https://dashboard.SEU_IP.sslip.io
-```
+### Passo 5.3 - Criar Primeiro Usuário
+1. Após conectar, crie uma conta na tela de login
+2. No Supabase, vá em **SQL Editor** e execute:
+   ```sql
+   SELECT make_user_admin('seu-email@exemplo.com');
+   ```
 
-**Credenciais padrão:**
-| Campo | Valor |
-|-------|-------|
-| Usuário | `admin` |
-| Senha | `admin123` |
-
-⚠️ **IMPORTANTE**: Altere a senha imediatamente em **Configurações**!
+✅ **Pronto!** Sua aplicação está configurada!
 
 ---
 
-## PARTE 6: Configurar Domínio Próprio (Opcional)
+## PARTE 6: Configurar a API UAZAPI
 
-### Passo 6.1 - No Painel DNS do seu Domínio
-Crie um registro A:
-
-| Tipo | Nome | Valor |
-|------|------|-------|
-| A | painel | IP_DA_VPS |
-
-### Passo 6.2 - No Easypanel
-1. Vá no serviço `dashboard`
-2. Aba **Domains**
-3. Adicione: `painel.seudominio.com.br`
-4. Marque **HTTPS**
-5. Clique em **Save**
-
-⏱️ Aguarde 5-10 minutos para propagação DNS.
-
----
-
-## PARTE 7: Configurar a API UAZAPI
-
-Após acessar o dashboard:
-
-1. Vá em **Configurações** (menu lateral)
-2. Preencha:
-   - **URL Base da API**: `https://sua-api-uazapi.com`
-   - **Admin Token**: Token de administrador da UAZAPI
-3. Clique em **Salvar Configurações**
-4. Clique em **Testar Conexão** para verificar
-
----
-
-## PARTE 8: Deploy Automático (Webhook)
-
-Para atualizar automaticamente quando houver mudanças no Lovable:
-
-### Passo 8.1 - Copiar Webhook do Easypanel
-1. No serviço, vá em **Source**
-2. Copie o **Webhook URL**
-
-### Passo 8.2 - Configurar no GitHub
-1. No repositório GitHub, vá em **Settings** → **Webhooks**
-2. Clique em **Add webhook**
+1. Faça login no Unidash
+2. Vá em **Configurações**
 3. Preencha:
-   | Campo | Valor |
-   |-------|-------|
-   | Payload URL | URL copiada do Easypanel |
-   | Content type | `application/json` |
-   | Events | `Just the push event` |
-4. Clique em **Add webhook**
+   - **URL Base da API**: sua URL UAZAPI
+   - **Admin Token**: token da API
+4. Clique em **Salvar**
 
-✅ Agora toda alteração no Lovable atualiza automaticamente na VPS!
+---
+
+## Deploy Automático (Opcional)
+
+Para atualizar automaticamente quando houver mudanças:
+
+1. No Easypanel, vá em **Source** → copie o **Webhook URL**
+2. No GitHub, vá em **Settings** → **Webhooks** → **Add webhook**
+3. Cole a URL e selecione **push events**
 
 ---
 
 ## Solução de Problemas
 
-### ❌ Build falhou
-1. Vá em **Deployments**
-2. Clique no deploy com erro
-3. Leia os logs para identificar o problema
-
-### ❌ Erro 502 Bad Gateway
-- Aguarde 1-2 minutos após o deploy
-- Clique em **Restart** no serviço
-
-### ❌ Página em branco
-- Verifique se o status é **Running**
-- Confira os logs em **Deployments**
-
-### ❌ SSL não funciona
-- Verifique se o DNS está propagado: `nslookup seudominio.com`
-- Aguarde até 24h para propagação completa
-
-### ❌ API não conecta
-- Verifique se a URL da API está correta
-- Confirme que o Admin Token é válido
-- Teste a API diretamente no navegador
+| Problema | Solução |
+|----------|---------|
+| Página em branco | Verifique se o domínio está configurado no Easypanel |
+| Erro 502 | Aguarde 1-2 min após deploy ou clique em Restart |
+| Erro de conexão | Verifique URL e chave do Supabase |
+| SQL não executou | Execute novamente no SQL Editor do Supabase |
 
 ---
 
-## Comandos Úteis
+## Resumo
 
-### Ver logs em tempo real (na VPS)
-```bash
-docker logs -f $(docker ps -q --filter name=dashboard)
-```
+| Etapa | Tempo |
+|-------|-------|
+| Criar projeto Supabase | 3 min |
+| Conectar GitHub | 2 min |
+| Instalar Easypanel | 10 min |
+| Configurar e Deploy | 5 min |
+| Configurar credenciais no app | 2 min |
 
-### Reiniciar container
-```bash
-docker restart $(docker ps -q --filter name=dashboard)
-```
-
-### Ver uso de recursos
-```bash
-docker stats
-```
+**Tempo total**: ~20 minutos
 
 ---
 
-## Resumo Rápido
-
-| Etapa | Ação | Tempo |
-|-------|------|-------|
-| 1 | Conectar GitHub no Lovable | 2 min |
-| 2 | Instalar Easypanel na VPS | 10 min |
-| 3 | Criar projeto e serviço | 3 min |
-| 4 | Configurar GitHub + Build | 5 min |
-| 5 | Deploy | 5 min |
-| 6 | Configurar API | 2 min |
-| 7 | Webhook (opcional) | 3 min |
-
-**Tempo total estimado**: 20-30 minutos
-
----
-
-## Links Úteis
-
-- 📚 Documentação Easypanel: https://easypanel.io/docs
-- 💬 Discord Easypanel: https://discord.gg/easypanel
-- 📖 Documentação UAZAPI: https://docs.uazapi.com
-
----
-
-✅ **Pronto!** Seu Unidash está rodando na VPS com deploy automático!
+✅ **Vantagem**: Todas as credenciais são configuradas **diretamente na aplicação**, sem mexer em variáveis de ambiente!
