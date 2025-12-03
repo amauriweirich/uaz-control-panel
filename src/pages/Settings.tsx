@@ -25,7 +25,7 @@ import { toast } from '@/hooks/use-toast';
 export default function Settings() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [apiConfig, setApiConfig] = useState<ApiConfig>({ baseUrl: '' });
+  const [apiConfig, setApiConfig] = useState<ApiConfig>({ baseUrl: '', adminToken: '' });
   const [credentials, setCredentials] = useState<AuthCredentials>({ username: '', password: '' });
   const [brandingConfig, setBrandingConfig] = useState<BrandingConfig>({ appName: '', companyName: '' });
   const [newPassword, setNewPassword] = useState('');
@@ -42,12 +42,20 @@ export default function Settings() {
   }, [navigate]);
 
   const handleSaveApi = () => {
+    if (!apiConfig.baseUrl) {
+      toast({ title: 'Erro', description: 'URL Base é obrigatória', variant: 'destructive' });
+      return;
+    }
+    if (!apiConfig.adminToken) {
+      toast({ title: 'Erro', description: 'Admin Token é obrigatório', variant: 'destructive' });
+      return;
+    }
     setSaving(true);
     setTimeout(() => {
       api.saveConfig(apiConfig);
       toast({ 
         title: 'Configuração salva', 
-        description: 'URL da API atualizada com sucesso' 
+        description: 'Conexão com a API configurada com sucesso' 
       });
       setSaving(false);
     }, 500);
@@ -254,18 +262,21 @@ export default function Settings() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="apiKey">API Key (opcional)</Label>
+              <Label htmlFor="adminToken">Admin Token *</Label>
               <div className="relative">
                 <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  id="apiKey"
+                  id="adminToken"
                   type="password"
-                  value={apiConfig.apiKey || ''}
-                  onChange={(e) => setApiConfig({ ...apiConfig, apiKey: e.target.value })}
-                  placeholder="Sua chave de API"
+                  value={apiConfig.adminToken}
+                  onChange={(e) => setApiConfig({ ...apiConfig, adminToken: e.target.value })}
+                  placeholder="Seu token de administrador"
                   className="pl-10 bg-secondary/50 border-border"
                 />
               </div>
+              <p className="text-xs text-muted-foreground">
+                Token obrigatório para criar e gerenciar instâncias. Obtido no painel da UAZAPI.
+              </p>
             </div>
 
             <Button onClick={handleSaveApi} disabled={saving}>
