@@ -4,96 +4,104 @@ import {
   ArrowLeft, 
   Server, 
   Key, 
-  User, 
-  Lock, 
   Save,
   Loader2,
   CheckCircle,
   Palette,
   Upload,
   X,
-  Image
+  Image,
+  ShieldAlert
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { api, ApiConfig } from '@/lib/api';
-import { auth, AuthCredentials } from '@/lib/auth';
-import { branding, BrandingConfig } from '@/lib/branding';
+import { useAuth } from '@/hooks/useAuth';
+import { settingsService, AppSettings, isMaskedValue } from '@/lib/settingsService';
 import { toast } from '@/hooks/use-toast';
 
 export default function Settings() {
   const navigate = useNavigate();
+  const { user, loading: authLoading, isAdmin } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [apiConfig, setApiConfig] = useState<ApiConfig>({ baseUrl: '', adminToken: '' });
-  const [credentials, setCredentials] = useState<AuthCredentials>({ username: '', password: '' });
-  const [brandingConfig, setBrandingConfig] = useState<BrandingConfig>({ appName: '', companyName: '' });
-  const [newPassword, setNewPassword] = useState('');
+  const [settings, setSettings] = useState<AppSettings>({
+    api_base_url: '',
+    api_admin_token: '',
+    app_name: '',
+    company_name: '',
+    logo_url: undefined
+  });
   const [saving, setSaving] = useState(false);
+  const [loadingSettings, setLoadingSettings] = useState(true);
 
   useEffect(() => {
-    if (!auth.isAuthenticated()) {
+    if (!authLoading && !user) {
       navigate('/');
       return;
     }
-    setApiConfig(api.getConfig());
-    setCredentials(auth.getCredentials());
-    setBrandingConfig(branding.get());
-  }, [navigate]);
+    if (!authLoading && !isAdmin) {
+      toast({ title: 'Acesso negado', description: 'Você precisa ser admin para acessar', variant: 'destructive' });
+      navigate('/dashboard');
+      return;
+    }
+    if (user && isAdmin) {
+      loadSettings();
+    }
+  }, [user, authLoading, isAdmin, navigate]);
 
-  const handleSaveApi = () => {
-    if (!apiConfig.baseUrl) {
+  const loadSettings = async () => {
+    setLoadingSettings(true);
+    try {
+      const data = await settingsService.getSettings();
+      setSettings(data);
+    } catch (error) {
+      console.error('Error loading settings:', error);
+      toast({ title: 'Erro', description: 'Falha ao carregar configurações', variant: 'destructive' });
+    } finally {
+      setLoadingSettings(false);
+    }
+  };
+
+  const handleSaveApi = async () => {
+    if (!settings.api_base_url) {
       toast({ title: 'Erro', description: 'URL Base é obrigatória', variant: 'destructive' });
       return;
     }
-    if (!apiConfig.adminToken) {
+    if (!settings.api_admin_token && !isMaskedValue(settings.api_admin_token)) {
       toast({ title: 'Erro', description: 'Admin Token é obrigatório', variant: 'destructive' });
       return;
     }
     setSaving(true);
-    setTimeout(() => {
-      api.saveConfig(apiConfig);
-      toast({ 
-        title: 'Configuração salva', 
-        description: 'Conexão com a API configurada com sucesso' 
-      });
+    try {
+      const success = await settingsService.saveApiConfig(settings.api_base_url, settings.api_admin_token);
+      if (success) {
+        toast({ title: 'Configuração salva', description: 'Conexão com a API configurada com sucesso' });
+        // Reload to get masked values
+        await loadSettings();
+      } else {
+        toast({ title: 'Erro', description: 'Falha ao salvar configuração', variant: 'destructive' });
+      }
+    } finally {
       setSaving(false);
-    }, 500);
-  };
-
-  const handleSaveCredentials = () => {
-    if (!credentials.username) {
-      toast({ title: 'Erro', description: 'Usuário é obrigatório', variant: 'destructive' });
-      return;
     }
-    
-    setSaving(true);
-    setTimeout(() => {
-      const updatedCredentials = {
-        username: credentials.username,
-        password: newPassword || credentials.password,
-      };
-      auth.saveCredentials(updatedCredentials);
-      setCredentials(updatedCredentials);
-      setNewPassword('');
-      toast({ 
-        title: 'Credenciais atualizadas', 
-        description: 'Suas credenciais foram salvas' 
-      });
-      setSaving(false);
-    }, 500);
   };
 
-  const handleSaveBranding = () => {
+  const handleSaveBranding = async () => {
     setSaving(true);
-    setTimeout(() => {
-      branding.save(brandingConfig);
-      toast({ 
-        title: 'Personalização salva', 
-        description: 'As alterações serão aplicadas ao recarregar' 
-      });
+    try {
+      const success = await settingsService.saveBranding(
+        settings.app_name, 
+        settings.company_name, 
+        settings.logo_url
+      );
+      if (success) {
+        toast({ title: 'Personalização salva', description: 'As alterações foram aplicadas' });
+      } else {
+        toast({ title: 'Erro', description: 'Falha ao salvar personalização', variant: 'destructive' });
+      }
+    } finally {
       setSaving(false);
-    }, 500);
+    }
   };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -113,17 +121,25 @@ export default function Settings() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const base64 = event.target?.result as string;
-      setBrandingConfig({ ...brandingConfig, logoUrl: base64 });
+      setSettings({ ...settings, logo_url: base64 });
     };
     reader.readAsDataURL(file);
   };
 
   const handleRemoveLogo = () => {
-    setBrandingConfig({ ...brandingConfig, logoUrl: undefined });
+    setSettings({ ...settings, logo_url: undefined });
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
+
+  if (authLoading || loadingSettings) {
+    return (
+      <div className="min-h-screen flex items-center justify-center gradient-dark">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen gradient-dark">
@@ -136,13 +152,21 @@ export default function Settings() {
             </Button>
             <div>
               <h1 className="font-bold text-foreground">Configurações</h1>
-              <p className="text-xs text-muted-foreground">Ajuste sua conexão e credenciais</p>
+              <p className="text-xs text-muted-foreground">Ajuste sua conexão e personalização</p>
             </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Admin Notice */}
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-primary/10 border border-primary/20">
+          <ShieldAlert className="w-5 h-5 text-primary" />
+          <p className="text-sm text-foreground">
+            Você está logado como <strong>administrador</strong>. As configurações são compartilhadas com todos os usuários.
+          </p>
+        </div>
+
         {/* Branding Configuration */}
         <div className="glass rounded-xl p-6 animate-fade-in">
           <div className="flex items-center gap-3 mb-6">
@@ -161,9 +185,9 @@ export default function Settings() {
               <Label>Logo do Aplicativo</Label>
               <div className="flex items-center gap-4">
                 <div className="w-20 h-20 rounded-xl bg-secondary/50 border border-border flex items-center justify-center overflow-hidden">
-                  {brandingConfig.logoUrl ? (
+                  {settings.logo_url ? (
                     <img 
-                      src={brandingConfig.logoUrl} 
+                      src={settings.logo_url} 
                       alt="Logo" 
                       className="w-full h-full object-contain"
                     />
@@ -187,7 +211,7 @@ export default function Settings() {
                     <Upload className="w-4 h-4" />
                     Enviar Logo
                   </Button>
-                  {brandingConfig.logoUrl && (
+                  {settings.logo_url && (
                     <Button 
                       variant="ghost" 
                       size="sm"
@@ -209,8 +233,8 @@ export default function Settings() {
               <Label htmlFor="appName">Nome do Aplicativo</Label>
               <Input
                 id="appName"
-                value={brandingConfig.appName}
-                onChange={(e) => setBrandingConfig({ ...brandingConfig, appName: e.target.value })}
+                value={settings.app_name}
+                onChange={(e) => setSettings({ ...settings, app_name: e.target.value })}
                 placeholder="Unidash"
                 className="bg-secondary/50 border-border"
               />
@@ -220,8 +244,8 @@ export default function Settings() {
               <Label htmlFor="companyName">Nome da Empresa</Label>
               <Input
                 id="companyName"
-                value={brandingConfig.companyName}
-                onChange={(e) => setBrandingConfig({ ...brandingConfig, companyName: e.target.value })}
+                value={settings.company_name}
+                onChange={(e) => setSettings({ ...settings, company_name: e.target.value })}
                 placeholder="Unicapital"
                 className="bg-secondary/50 border-border"
               />
@@ -249,8 +273,8 @@ export default function Settings() {
           <div className="space-y-4">
             <div className="p-3 rounded-lg bg-accent/10 border border-accent/20 mb-4">
               <p className="text-xs text-accent">
-                <strong>Autenticação:</strong> O Admin Token é obrigatório para criar e gerenciar instâncias. 
-                Cada instância criada recebe seu próprio token para operações específicas.
+                <strong>Segurança:</strong> O Admin Token é armazenado de forma segura e mascarado na exibição.
+                Para alterar, digite um novo valor.
               </p>
             </div>
 
@@ -258,8 +282,8 @@ export default function Settings() {
               <Label htmlFor="baseUrl">URL Base da API</Label>
               <Input
                 id="baseUrl"
-                value={apiConfig.baseUrl}
-                onChange={(e) => setApiConfig({ ...apiConfig, baseUrl: e.target.value })}
+                value={settings.api_base_url}
+                onChange={(e) => setSettings({ ...settings, api_base_url: e.target.value })}
                 placeholder="https://free.uazapi.com"
                 className="bg-secondary/50 border-border font-mono text-sm"
               />
@@ -275,69 +299,22 @@ export default function Settings() {
                 <Input
                   id="adminToken"
                   type="password"
-                  value={apiConfig.adminToken}
-                  onChange={(e) => setApiConfig({ ...apiConfig, adminToken: e.target.value })}
-                  placeholder="Seu token de administrador"
+                  value={settings.api_admin_token}
+                  onChange={(e) => setSettings({ ...settings, api_admin_token: e.target.value })}
+                  placeholder={isMaskedValue(settings.api_admin_token) ? "••••••••" : "Seu token de administrador"}
                   className="pl-10 bg-secondary/50 border-border"
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Token obrigatório para criar e listar instâncias. Enviado no header "admintoken".
+                {isMaskedValue(settings.api_admin_token) 
+                  ? "Token já configurado. Digite um novo valor para alterar."
+                  : "Token obrigatório para criar e listar instâncias."}
               </p>
             </div>
 
             <Button onClick={handleSaveApi} disabled={saving}>
-              {saving ? <Loader2 className="animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-              Salvar Configuração
-            </Button>
-          </div>
-        </div>
-
-        {/* Credentials */}
-        <div className="glass rounded-xl p-6 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2.5 rounded-lg bg-warning/10">
-              <Lock className="w-5 h-5 text-warning" />
-            </div>
-            <div>
-              <h2 className="font-semibold text-foreground">Credenciais de Acesso</h2>
-              <p className="text-sm text-muted-foreground">Altere seu usuário e senha</p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username">Usuário</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="username"
-                  value={credentials.username}
-                  onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
-                  placeholder="admin"
-                  className="pl-10 bg-secondary/50 border-border"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="newPassword">Nova Senha (deixe vazio para manter)</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="newPassword"
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="pl-10 bg-secondary/50 border-border"
-                />
-              </div>
-            </div>
-
-            <Button onClick={handleSaveCredentials} disabled={saving}>
               {saving ? <Loader2 className="animate-spin" /> : <Save className="w-4 h-4" />}
-              Salvar Credenciais
+              Salvar Configuração
             </Button>
           </div>
         </div>
