@@ -16,25 +16,45 @@ import { Button } from '@/components/ui/button';
 import { InstanceCard } from '@/components/InstanceCard';
 import { CreateInstanceModal } from '@/components/CreateInstanceModal';
 import { Instance, api } from '@/lib/api';
-import { auth } from '@/lib/auth';
-import { branding, BrandingConfig } from '@/lib/branding';
+import { useAuth } from '@/hooks/useAuth';
+import { settingsService, AppSettings } from '@/lib/settingsService';
 import { toast } from '@/hooks/use-toast';
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { user, loading: authLoading, signOut, isAdmin } = useAuth();
   const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading] = useState(true);
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [brand, setBrand] = useState<BrandingConfig>(branding.get());
+  const [brand, setBrand] = useState<Pick<AppSettings, 'app_name' | 'company_name' | 'logo_url'>>({
+    app_name: 'Unidash',
+    company_name: 'Unicapital',
+    logo_url: undefined
+  });
 
   useEffect(() => {
-    if (!auth.isAuthenticated()) {
+    if (!authLoading && !user) {
       navigate('/');
       return;
     }
-    setBrand(branding.get());
-    fetchInstances();
-  }, [navigate]);
+    if (user) {
+      loadBranding();
+      fetchInstances();
+    }
+  }, [user, authLoading, navigate]);
+
+  const loadBranding = async () => {
+    try {
+      const settings = await settingsService.getSettings();
+      setBrand({
+        app_name: settings.app_name,
+        company_name: settings.company_name,
+        logo_url: settings.logo_url
+      });
+    } catch (error) {
+      console.error('Error loading branding:', error);
+    }
+  };
 
   const fetchInstances = async () => {
     setLoading(true);
@@ -53,10 +73,18 @@ export default function Dashboard() {
     }
   };
 
-  const handleLogout = () => {
-    auth.logout();
+  const handleLogout = async () => {
+    await signOut();
     navigate('/');
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center gradient-dark">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const connectedCount = instances.filter(i => i.status === 'connected').length;
   const disconnectedCount = instances.filter(i => i.status !== 'connected').length;
@@ -68,10 +96,10 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              {brand.logoUrl ? (
+              {brand.logo_url ? (
                 <div className="w-10 h-10 rounded-xl overflow-hidden">
                   <img 
-                    src={brand.logoUrl} 
+                    src={brand.logo_url} 
                     alt="Logo" 
                     className="w-full h-full object-contain"
                   />
@@ -82,8 +110,8 @@ export default function Dashboard() {
                 </div>
               )}
               <div>
-                <h1 className="font-bold text-foreground">{brand.appName}</h1>
-                <p className="text-xs text-muted-foreground">{brand.companyName} • WhatsApp</p>
+                <h1 className="font-bold text-foreground">{brand.app_name}</h1>
+                <p className="text-xs text-muted-foreground">{brand.company_name} • WhatsApp</p>
               </div>
             </div>
 
@@ -96,14 +124,16 @@ export default function Dashboard() {
               >
                 <BookOpen className="w-5 h-5" />
               </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => navigate('/settings')}
-                title="Configurações"
-              >
-                <Settings className="w-5 h-5" />
-              </Button>
+              {isAdmin && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => navigate('/settings')}
+                  title="Configurações"
+                >
+                  <Settings className="w-5 h-5" />
+                </Button>
+              )}
               <Button 
                 variant="ghost" 
                 size="icon" 

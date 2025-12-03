@@ -1,4 +1,5 @@
 // UAZAPI Service - WhatsApp API v2.0
+import { supabase } from '@/integrations/supabase/client';
 
 export interface Instance {
   id: string;
@@ -39,17 +40,61 @@ export interface InstanceStatus {
   };
 }
 
-const getConfig = (): ApiConfig => {
-  const stored = localStorage.getItem('uazapi_config');
-  if (stored) {
-    return JSON.parse(stored);
+// Cache for API config to avoid multiple DB calls
+let configCache: ApiConfig | null = null;
+let configCacheTime = 0;
+const CACHE_TTL = 30000; // 30 seconds
+
+const getConfig = async (): Promise<ApiConfig> => {
+  // Check cache
+  if (configCache && Date.now() - configCacheTime < CACHE_TTL) {
+    return configCache;
   }
-  return { baseUrl: 'https://free.uazapi.com', adminToken: '' };
+
+  try {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('setting_key, setting_value')
+      .in('setting_key', ['api_base_url', 'api_admin_token']);
+
+    if (error || !data) {
+      console.error('Error fetching API config:', error);
+      return { baseUrl: 'https://free.uazapi.com', adminToken: '' };
+    }
+
+    const config: ApiConfig = {
+      baseUrl: 'https://free.uazapi.com',
+      adminToken: ''
+    };
+
+    data.forEach((item) => {
+      if (item.setting_key === 'api_base_url') {
+        config.baseUrl = item.setting_value;
+      } else if (item.setting_key === 'api_admin_token') {
+        config.adminToken = item.setting_value;
+      }
+    });
+
+    // Update cache
+    configCache = config;
+    configCacheTime = Date.now();
+
+    return config;
+  } catch (error) {
+    console.error('Error fetching API config:', error);
+    return { baseUrl: 'https://free.uazapi.com', adminToken: '' };
+  }
+};
+
+// Invalidate cache when settings are updated
+export const invalidateConfigCache = () => {
+  configCache = null;
+  configCacheTime = 0;
 };
 
 // Headers para endpoints administrativos (criar/listar instâncias)
-const getAdminHeaders = () => {
-  const config = getConfig();
+const getAdminHeaders = async () => {
+  const config = await getConfig();
   const headers: Record<string, string> = {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
@@ -71,19 +116,17 @@ const getInstanceHeaders = (instanceToken: string) => {
 
 export const api = {
   getConfig,
-  
-  saveConfig: (config: ApiConfig) => {
-    localStorage.setItem('uazapi_config', JSON.stringify(config));
-  },
+  invalidateConfigCache,
 
   // ==================== ADMINISTRAÇÃO ====================
   // Requer: admintoken header
 
   getAllInstances: async (): Promise<Instance[]> => {
-    const config = getConfig();
+    const config = await getConfig();
+    const headers = await getAdminHeaders();
     const response = await fetch(`${config.baseUrl}/instance/all`, {
       method: 'GET',
-      headers: getAdminHeaders(),
+      headers,
     });
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
@@ -98,10 +141,11 @@ export const api = {
     adminField01?: string; 
     adminField02?: string;
   }): Promise<{ instance: Instance; token: string }> => {
-    const config = getConfig();
+    const config = await getConfig();
+    const headers = await getAdminHeaders();
     const response = await fetch(`${config.baseUrl}/instance/init`, {
       method: 'POST',
-      headers: getAdminHeaders(),
+      headers,
       body: JSON.stringify(data),
     });
     if (!response.ok) {
@@ -115,7 +159,7 @@ export const api = {
   // Requer: token header (token da instância)
 
   connectInstance: async (instanceToken: string, phone?: string) => {
-    const config = getConfig();
+    const config = await getConfig();
     const response = await fetch(`${config.baseUrl}/instance/connect`, {
       method: 'POST',
       headers: getInstanceHeaders(instanceToken),
@@ -129,7 +173,7 @@ export const api = {
   },
 
   disconnectInstance: async (instanceToken: string) => {
-    const config = getConfig();
+    const config = await getConfig();
     const response = await fetch(`${config.baseUrl}/instance/disconnect`, {
       method: 'POST',
       headers: getInstanceHeaders(instanceToken),
@@ -142,7 +186,7 @@ export const api = {
   },
 
   getInstanceStatus: async (instanceToken: string): Promise<InstanceStatus> => {
-    const config = getConfig();
+    const config = await getConfig();
     const response = await fetch(`${config.baseUrl}/instance/status`, {
       method: 'GET',
       headers: getInstanceHeaders(instanceToken),
@@ -155,7 +199,7 @@ export const api = {
   },
 
   getQRCode: async (instanceToken: string) => {
-    const config = getConfig();
+    const config = await getConfig();
     const response = await fetch(`${config.baseUrl}/instance/qrcode`, {
       method: 'GET',
       headers: getInstanceHeaders(instanceToken),
