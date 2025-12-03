@@ -16,6 +16,7 @@ import { InstanceCard } from '@/components/InstanceCard';
 import { CreateInstanceModal } from '@/components/CreateInstanceModal';
 import { Instance, api } from '@/lib/api';
 import { auth } from '@/lib/auth';
+import { branding, BrandingConfig } from '@/lib/branding';
 import { toast } from '@/hooks/use-toast';
 
 export default function Dashboard() {
@@ -23,12 +24,14 @@ export default function Dashboard() {
   const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading] = useState(true);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [brand, setBrand] = useState<BrandingConfig>(branding.get());
 
   useEffect(() => {
     if (!auth.isAuthenticated()) {
       navigate('/');
       return;
     }
+    setBrand(branding.get());
     fetchInstances();
   }, [navigate]);
 
@@ -64,12 +67,22 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
-                <MessageCircle className="w-5 h-5 text-primary-foreground" />
-              </div>
+              {brand.logoUrl ? (
+                <div className="w-10 h-10 rounded-xl overflow-hidden">
+                  <img 
+                    src={brand.logoUrl} 
+                    alt="Logo" 
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
+                  <MessageCircle className="w-5 h-5 text-primary-foreground" />
+                </div>
+              )}
               <div>
-                <h1 className="font-bold text-foreground">Unidash</h1>
-                <p className="text-xs text-muted-foreground">Unicapital • WhatsApp</p>
+                <h1 className="font-bold text-foreground">{brand.appName}</h1>
+                <p className="text-xs text-muted-foreground">{brand.companyName} • WhatsApp</p>
               </div>
             </div>
 
