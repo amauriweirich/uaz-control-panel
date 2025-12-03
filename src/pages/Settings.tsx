@@ -241,12 +241,19 @@ export default function Settings() {
               <Server className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h2 className="font-semibold text-foreground">Configuração da API</h2>
-              <p className="text-sm text-muted-foreground">Configure a URL da UAZAPI</p>
+              <h2 className="font-semibold text-foreground">Configuração da API UAZAPI</h2>
+              <p className="text-sm text-muted-foreground">Conecte ao seu servidor WhatsApp</p>
             </div>
           </div>
 
           <div className="space-y-4">
+            <div className="p-3 rounded-lg bg-accent/10 border border-accent/20 mb-4">
+              <p className="text-xs text-accent">
+                <strong>Autenticação:</strong> O Admin Token é obrigatório para criar e gerenciar instâncias. 
+                Cada instância criada recebe seu próprio token para operações específicas.
+              </p>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="baseUrl">URL Base da API</Label>
               <Input
@@ -257,7 +264,7 @@ export default function Settings() {
                 className="bg-secondary/50 border-border font-mono text-sm"
               />
               <p className="text-xs text-muted-foreground">
-                Ex: https://sua-instancia.uazapi.com
+                Ex: https://seu-subdominio.uazapi.com
               </p>
             </div>
 
@@ -275,7 +282,7 @@ export default function Settings() {
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Token obrigatório para criar e gerenciar instâncias. Obtido no painel da UAZAPI.
+                Token obrigatório para criar e listar instâncias. Enviado no header "admintoken".
               </p>
             </div>
 

@@ -1,19 +1,42 @@
-// UAZAPI Service
+// UAZAPI Service - WhatsApp API v2.0
 
 export interface Instance {
   id: string;
   name: string;
-  status: 'connected' | 'disconnected' | 'connecting' | 'qr_code';
+  token: string;
+  status: 'connected' | 'disconnected' | 'connecting';
   phone?: string;
+  paircode?: string;
+  qrcode?: string;
+  profileName?: string;
+  profilePicUrl?: string;
+  isBusiness?: boolean;
+  plataform?: string;
   systemName?: string;
+  owner?: string;
+  lastDisconnect?: string;
+  lastDisconnectReason?: string;
   adminField01?: string;
   adminField02?: string;
-  qrCode?: string;
+  created?: string;
+  updated?: string;
 }
 
 export interface ApiConfig {
   baseUrl: string;
   adminToken: string;
+}
+
+export interface InstanceStatus {
+  instance: Instance;
+  status: {
+    connected: boolean;
+    loggedIn: boolean;
+    jid?: {
+      user: string;
+      server: string;
+    };
+  };
 }
 
 const getConfig = (): ApiConfig => {
@@ -24,16 +47,26 @@ const getConfig = (): ApiConfig => {
   return { baseUrl: 'https://free.uazapi.com', adminToken: '' };
 };
 
-const getHeaders = (includeAdminToken = true) => {
+// Headers para endpoints administrativos (criar/listar instâncias)
+const getAdminHeaders = () => {
   const config = getConfig();
   const headers: Record<string, string> = {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
   };
-  if (includeAdminToken && config.adminToken) {
+  if (config.adminToken) {
     headers['admintoken'] = config.adminToken;
   }
   return headers;
+};
+
+// Headers para endpoints de instância específica
+const getInstanceHeaders = (instanceToken: string) => {
+  return {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    'token': instanceToken,
+  };
 };
 
 export const api = {
@@ -43,77 +76,94 @@ export const api = {
     localStorage.setItem('uazapi_config', JSON.stringify(config));
   },
 
+  // ==================== ADMINISTRAÇÃO ====================
+  // Requer: admintoken header
+
   getAllInstances: async (): Promise<Instance[]> => {
     const config = getConfig();
     const response = await fetch(`${config.baseUrl}/instance/all`, {
       method: 'GET',
-      headers: getHeaders(),
+      headers: getAdminHeaders(),
     });
-    if (!response.ok) throw new Error('Falha ao listar instâncias');
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Falha ao listar instâncias');
+    }
     return response.json();
   },
 
-  createInstance: async (data: { name: string; systemName?: string; adminField01?: string; adminField02?: string }) => {
+  createInstance: async (data: { 
+    name: string; 
+    systemName?: string; 
+    adminField01?: string; 
+    adminField02?: string;
+  }): Promise<{ instance: Instance; token: string }> => {
     const config = getConfig();
     const response = await fetch(`${config.baseUrl}/instance/init`, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: getAdminHeaders(),
       body: JSON.stringify(data),
     });
-    if (!response.ok) throw new Error('Falha ao criar instância');
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Falha ao criar instância');
+    }
     return response.json();
   },
 
-  connectInstance: async (instanceId: string, phone?: string) => {
+  // ==================== INSTÂNCIA ====================
+  // Requer: token header (token da instância)
+
+  connectInstance: async (instanceToken: string, phone?: string) => {
     const config = getConfig();
     const response = await fetch(`${config.baseUrl}/instance/connect`, {
       method: 'POST',
-      headers: {
-        ...getHeaders(),
-        'instance-id': instanceId,
-      },
+      headers: getInstanceHeaders(instanceToken),
       body: JSON.stringify({ phone }),
     });
-    if (!response.ok) throw new Error('Falha ao conectar instância');
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Falha ao conectar instância');
+    }
     return response.json();
   },
 
-  disconnectInstance: async (instanceId: string) => {
+  disconnectInstance: async (instanceToken: string) => {
     const config = getConfig();
     const response = await fetch(`${config.baseUrl}/instance/disconnect`, {
       method: 'POST',
-      headers: {
-        ...getHeaders(),
-        'instance-id': instanceId,
-      },
+      headers: getInstanceHeaders(instanceToken),
     });
-    if (!response.ok) throw new Error('Falha ao desconectar instância');
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Falha ao desconectar instância');
+    }
     return response.json();
   },
 
-  getInstanceStatus: async (instanceId: string) => {
+  getInstanceStatus: async (instanceToken: string): Promise<InstanceStatus> => {
     const config = getConfig();
     const response = await fetch(`${config.baseUrl}/instance/status`, {
       method: 'GET',
-      headers: {
-        ...getHeaders(),
-        'instance-id': instanceId,
-      },
+      headers: getInstanceHeaders(instanceToken),
     });
-    if (!response.ok) throw new Error('Falha ao verificar status');
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Falha ao verificar status');
+    }
     return response.json();
   },
 
-  getQRCode: async (instanceId: string) => {
+  getQRCode: async (instanceToken: string) => {
     const config = getConfig();
     const response = await fetch(`${config.baseUrl}/instance/qrcode`, {
       method: 'GET',
-      headers: {
-        ...getHeaders(),
-        'instance-id': instanceId,
-      },
+      headers: getInstanceHeaders(instanceToken),
     });
-    if (!response.ok) throw new Error('Falha ao obter QR Code');
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Falha ao obter QR Code');
+    }
     return response.json();
   },
 };
