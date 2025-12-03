@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MessageCircle, Lock, User, LogIn, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { auth } from '@/lib/auth';
+import { branding, BrandingConfig } from '@/lib/branding';
 import { toast } from '@/hooks/use-toast';
 
 export default function Login() {
@@ -12,6 +13,11 @@ export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [brand, setBrand] = useState<BrandingConfig>(branding.get());
+
+  useEffect(() => {
+    setBrand(branding.get());
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,11 +43,21 @@ export default function Login() {
       <div className="w-full max-w-md">
         <div className="glass rounded-2xl p-8 animate-fade-in">
           <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mb-4 glow-primary">
-              <MessageCircle className="w-8 h-8 text-primary-foreground" />
-            </div>
-            <h1 className="text-2xl font-bold text-foreground">Unidash</h1>
-            <p className="text-muted-foreground mt-1">Unicapital • Gestão WhatsApp</p>
+            {brand.logoUrl ? (
+              <div className="w-20 h-20 rounded-2xl overflow-hidden mb-4 glow-primary">
+                <img 
+                  src={brand.logoUrl} 
+                  alt="Logo" 
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            ) : (
+              <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mb-4 glow-primary">
+                <MessageCircle className="w-8 h-8 text-primary-foreground" />
+              </div>
+            )}
+            <h1 className="text-2xl font-bold text-foreground">{brand.appName}</h1>
+            <p className="text-muted-foreground mt-1">{brand.companyName} • Gestão WhatsApp</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -98,7 +114,7 @@ export default function Login() {
           </form>
 
           <p className="text-xs text-muted-foreground text-center mt-6">
-            Unicapital © 2024
+            {brand.companyName} © {new Date().getFullYear()}
           </p>
         </div>
       </div>
