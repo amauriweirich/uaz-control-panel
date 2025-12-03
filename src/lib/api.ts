@@ -13,7 +13,7 @@ export interface Instance {
 
 export interface ApiConfig {
   baseUrl: string;
-  apiKey?: string;
+  adminToken: string;
 }
 
 const getConfig = (): ApiConfig => {
@@ -21,17 +21,17 @@ const getConfig = (): ApiConfig => {
   if (stored) {
     return JSON.parse(stored);
   }
-  return { baseUrl: 'https://free.uazapi.com' };
+  return { baseUrl: 'https://free.uazapi.com', adminToken: '' };
 };
 
-const getHeaders = () => {
+const getHeaders = (includeAdminToken = true) => {
   const config = getConfig();
   const headers: Record<string, string> = {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
   };
-  if (config.apiKey) {
-    headers['Authorization'] = `Bearer ${config.apiKey}`;
+  if (includeAdminToken && config.adminToken) {
+    headers['admintoken'] = config.adminToken;
   }
   return headers;
 };
