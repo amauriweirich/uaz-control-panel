@@ -9,7 +9,8 @@ import {
   Smartphone,
   Wifi,
   WifiOff,
-  Loader2
+  Loader2,
+  BookOpen
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { InstanceCard } from '@/components/InstanceCard';
@@ -87,6 +88,14 @@ export default function Dashboard() {
             </div>
 
             <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => navigate('/docs')}
+                title="Documentação"
+              >
+                <BookOpen className="w-5 h-5" />
+              </Button>
               <Button 
                 variant="ghost" 
                 size="icon" 
