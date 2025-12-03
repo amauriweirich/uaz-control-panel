@@ -1,5 +1,5 @@
 // UAZAPI Service - WhatsApp API v2.0
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 
 export interface Instance {
   id: string;

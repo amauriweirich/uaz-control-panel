@@ -3,14 +3,6 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Build arguments for Supabase configuration
-ARG VITE_SUPABASE_URL
-ARG VITE_SUPABASE_PUBLISHABLE_KEY
-
-# Set environment variables for build
-ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
-ENV VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
-
 # Copy package files
 COPY package*.json ./
 
@@ -20,7 +12,7 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build the application
+# Build the application (sem variáveis - serão injetadas em runtime)
 RUN npm run build
 
 # Production stage
@@ -32,8 +24,12 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Copy built files from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
+# Copy entrypoint script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 # Expose port 80
 EXPOSE 80
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Use entrypoint to inject config at runtime
+ENTRYPOINT ["/docker-entrypoint.sh"]
